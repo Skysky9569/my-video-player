@@ -42,17 +42,36 @@
             text-align: center;
         }
 
-        /* Bọc video và control để dễ dàng cho việc hiển thị */
         .video-wrapper {
             position: relative;
+            background-color: #000;
         }
-        
+
         video {
             width: 100%;
-            display: block; /* Loại bỏ khoảng trống thừa */
+            display: block;
         }
-        
-        /* --- CSS CHO KHU VỰC ĐIỀU KHIỂN TÙY CHỈNH --- */
+
+        #loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid #444;
+            border-top: 5px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 10;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
         .controls {
             position: absolute;
             bottom: 0;
@@ -66,8 +85,7 @@
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
         }
-        
-        /* Hiện control khi di chuột vào video */
+
         .video-wrapper:hover .controls {
             opacity: 1;
         }
@@ -85,7 +103,7 @@
             position: relative;
             display: flex;
             align-items: center;
-            height: 15px; /* Tăng vùng click */
+            height: 15px;
         }
 
         #buffer-bar {
@@ -94,25 +112,40 @@
             top: 50%;
             transform: translateY(-50%);
             height: 5px;
-            width: 0%; /* Bắt đầu với 0% */
-            background-color: #6c757d; /* Màu xám cho thanh buffer */
+            width: 0%;
+            background-color: #6c757d;
             border-radius: 5px;
-            pointer-events: none; /* Cho phép click xuyên qua */
+            pointer-events: none;
+        }
+
+        #progress-bar, #volume-bar {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            outline: none;
+            cursor: pointer;
         }
 
         #progress-bar {
-            -webkit-appearance: none;
-            appearance: none;
             width: 100%;
             height: 5px;
-            background: rgba(255, 255, 255, 0.3); /* Nền mờ cho thanh chưa chạy */
-            outline: none;
-            border-radius: 5px;
             position: relative;
-            cursor: pointer;
         }
-        
-        /* CSS cho phần đã chạy của thanh progress */
+
+        #progress-bar::-webkit-slider-runnable-track,
+        #volume-bar::-webkit-slider-runnable-track {
+            background: rgba(255, 255, 255, 0.3);
+            height: 5px;
+            border-radius: 5px;
+        }
+
+        #progress-bar::-moz-range-track,
+        #volume-bar::-moz-range-track {
+            background: rgba(255, 255, 255, 0.3);
+            height: 5px;
+            border-radius: 5px;
+        }
+
         #progress-bar::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -120,7 +153,7 @@
             height: 15px;
             background: #007bff;
             border-radius: 50%;
-            cursor: pointer;
+            margin-top: -5px; /* Căn giữa thumb */
         }
 
         #progress-bar::-moz-range-thumb {
@@ -128,13 +161,41 @@
             height: 15px;
             background: #007bff;
             border-radius: 50%;
-            cursor: pointer;
+            border: none;
         }
 
         .time-display {
             color: white;
             font-size: 14px;
             min-width: 90px;
+        }
+        
+        .volume-container {
+            display: flex;
+            align-items: center;
+        }
+
+        #volume-bar {
+            width: 80px;
+            height: 5px;
+        }
+
+        #volume-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background: #fff;
+            border-radius: 50%;
+            margin-top: -5px;
+        }
+
+        #volume-bar::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background: #fff;
+            border-radius: 50%;
+            border: none;
         }
 
         .playlist { padding: 20px; }
@@ -148,16 +209,13 @@
 <body>
 
 <div class="main-container">
-
     <div class="video-section">
         <header>
             <h1>Tổng hợp máy cái chill=)</h1>
         </header>
         <div class="video-wrapper">
-            <video id="videoPlayer" autoplay muted>
-                Trình duyệt của bạn không hỗ trợ thẻ video.
-            </video>
-            
+            <div id="loader"></div>
+            <video id="videoPlayer" autoplay></video>
             <div class="controls">
                 <button id="play-pause-btn">⏸️</button>
                 <div class="progress-container">
@@ -167,17 +225,19 @@
                 <div class="time-display">
                     <span id="current-time">00:00</span> / <span id="duration">00:00</span>
                 </div>
+                <div class="volume-container">
+                    <button id="mute-btn">🔊</button>
+                    <input type="range" id="volume-bar" min="0" max="1" step="0.01" value="1">
+                </div>
             </div>
         </div>
     </div>
-
     <div class="playlist-section">
         <div class="playlist">
             <h2>Danh sách phát</h2>
             <div id="playlist-container"></div>
         </div>
     </div>
-
 </div>
 
 <script>
@@ -188,20 +248,47 @@
         { title: "Như anh mơ", filename: "nhuanhmo.mp4"}
     ];
 
+    // --- Lấy các phần tử HTML ---
     const videoPlayer = document.getElementById('videoPlayer');
     const playlistContainer = document.getElementById('playlist-container');
-    let currentVideoIndex = 0;
-
-    // --- LẤY RA CÁC PHẦN TỬ ĐIỀU KHIỂN MỚI ---
     const playPauseBtn = document.getElementById('play-pause-btn');
     const progressBar = document.getElementById('progress-bar');
     const bufferBar = document.getElementById('buffer-bar');
     const currentTimeElem = document.getElementById('current-time');
     const durationElem = document.getElementById('duration');
+    const loader = document.getElementById('loader');
+    const muteBtn = document.getElementById('mute-btn');
+    const volumeBar = document.getElementById('volume-bar');
 
-    // --- PHẦN LOGIC CHO CÁC NÚT ĐIỀU KHIỂN ---
+    let currentVideoIndex = 0;
 
-    // 1. Nút Play/Pause
+    // --- Các hàm chính ---
+    function playVideo(index) {
+        if (index >= videos.length || index < 0) return;
+        
+        loader.style.display = 'block';
+        currentVideoIndex = index;
+        const video = videos[index];
+        videoPlayer.src = `videos/${video.filename}`;
+        videoPlayer.load();
+        
+        const playPromise = videoPlayer.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                // Autoplay thành công
+                playPauseBtn.textContent = '⏸️';
+            }).catch(error => {
+                // Autoplay bị chặn, tắt tiếng và thử lại
+                console.log("Autoplay có tiếng bị chặn, thử lại với chế độ tắt tiếng.");
+                videoPlayer.muted = true;
+                videoPlayer.play();
+                playPauseBtn.textContent = '⏸️';
+                updateVolumeUI();
+            });
+        }
+        updateActivePlaylistItem();
+    }
+
     function togglePlayPause() {
         if (videoPlayer.paused) {
             videoPlayer.play();
@@ -211,46 +298,28 @@
             playPauseBtn.textContent = '▶️';
         }
     }
-    playPauseBtn.addEventListener('click', togglePlayPause);
-    videoPlayer.addEventListener('click', togglePlayPause); // Cho phép click vào video để play/pause
 
-    // 2. Cập nhật thanh tiến trình và thời gian
-    videoPlayer.addEventListener('timeupdate', () => {
-        // Cập nhật thanh progress
-        const progressPercentage = (videoPlayer.currentTime / videoPlayer.duration) * 100;
-        progressBar.value = progressPercentage;
-        
-        // Cập nhật thời gian hiện tại
-        currentTimeElem.textContent = formatTime(videoPlayer.currentTime);
-    });
+    function toggleMute() {
+        videoPlayer.muted = !videoPlayer.muted;
+        updateVolumeUI();
+    }
 
-    // 3. Cho phép tua video (seek)
-    progressBar.addEventListener('input', () => {
-        const seekTime = (progressBar.value / 100) * videoPlayer.duration;
-        videoPlayer.currentTime = seekTime;
-    });
+    function handleVolumeChange() {
+        videoPlayer.volume = volumeBar.value;
+        videoPlayer.muted = volumeBar.value === '0';
+        updateVolumeUI();
+    }
 
-    // 4. Cập nhật thanh tiến trình LOAD (BUFFER)
-    videoPlayer.addEventListener('progress', () => {
-        if (videoPlayer.duration > 0 && videoPlayer.buffered.length > 0) {
-            const bufferedEnd = videoPlayer.buffered.end(videoPlayer.buffered.length - 1);
-            const bufferPercentage = (bufferedEnd / videoPlayer.duration) * 100;
-            bufferBar.style.width = `${bufferPercentage}%`;
+    function updateVolumeUI() {
+        if (videoPlayer.muted || videoPlayer.volume === 0) {
+            muteBtn.textContent = '🔇';
+            volumeBar.value = 0;
+        } else {
+            muteBtn.textContent = '🔊';
+            volumeBar.value = videoPlayer.volume;
         }
-    });
+    }
 
-    // 5. Hiển thị tổng thời lượng video
-    videoPlayer.addEventListener('loadedmetadata', () => {
-        durationElem.textContent = formatTime(videoPlayer.duration);
-    });
-
-    // --- LOGIC CHO PLAYLIST (giữ nguyên) ---
-
-    function createPlaylistItem(video, index) { /* ... giữ nguyên ... */ }
-    function updateActivePlaylistItem() { /* ... giữ nguyên ... */ }
-    function playVideo(index) { /* ... giữ nguyên ... */ }
-
-    // (Code cho các hàm playlist)
     function createPlaylistItem(video, index) {
         const item = document.createElement('div');
         item.className = 'playlist-item';
@@ -259,42 +328,68 @@
         item.onclick = () => { playVideo(index); };
         playlistContainer.appendChild(item);
     }
+
     function updateActivePlaylistItem() {
         const items = document.querySelectorAll('.playlist-item');
         items.forEach((item, index) => {
-            if (index === currentVideoIndex) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
+            item.classList.toggle('active', index === currentVideoIndex);
         });
     }
-    function playVideo(index) {
-        if (index >= videos.length || index < 0) return;
-        currentVideoIndex = index;
-        const video = videos[index];
-        videoPlayer.src = `videos/${video.filename}`;
-        videoPlayer.load();
-        videoPlayer.play().catch(e => console.error("Autoplay bị chặn:", e));
-        updateActivePlaylistItem();
-        playPauseBtn.textContent = '⏸️'; // Cập nhật nút Play/Pause
+
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    videos.forEach(createPlaylistItem);
-    if (videos.length > 0) { playVideo(0); }
+    // --- Gắn các sự kiện ---
+    playPauseBtn.addEventListener('click', togglePlayPause);
+    videoPlayer.addEventListener('click', togglePlayPause);
+    muteBtn.addEventListener('click', toggleMute);
+    volumeBar.addEventListener('input', handleVolumeChange);
+
+    videoPlayer.addEventListener('timeupdate', () => {
+        const progressPercentage = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+        progressBar.value = progressPercentage;
+        currentTimeElem.textContent = formatTime(videoPlayer.currentTime);
+    });
+
+    progressBar.addEventListener('input', () => {
+        const seekTime = (progressBar.value / 100) * videoPlayer.duration;
+        videoPlayer.currentTime = seekTime;
+    });
+
+    videoPlayer.addEventListener('progress', () => {
+        if (videoPlayer.duration > 0 && videoPlayer.buffered.length > 0) {
+            const bufferedEnd = videoPlayer.buffered.end(videoPlayer.buffered.length - 1);
+            const bufferPercentage = (bufferedEnd / videoPlayer.duration) * 100;
+            bufferBar.style.width = `${bufferPercentage}%`;
+        }
+    });
+
+    videoPlayer.addEventListener('loadedmetadata', () => {
+        durationElem.textContent = formatTime(videoPlayer.duration);
+    });
+    
+    videoPlayer.addEventListener('canplaythrough', () => {
+        loader.style.display = 'none';
+    });
+
+    videoPlayer.addEventListener('error', () => {
+        loader.style.display = 'none';
+        console.error("Lỗi khi tải video!");
+    });
 
     videoPlayer.onended = () => {
         const nextVideoIndex = (currentVideoIndex + 1) % videos.length;
         playVideo(nextVideoIndex);
     };
 
-    // Hàm tiện ích để định dạng thời gian
-    function formatTime(seconds) {
-        const minutes = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    // --- Khởi tạo ---
+    videos.forEach(createPlaylistItem);
+    if (videos.length > 0) {
+        playVideo(1);
     }
 </script>
-
 </body>
 </html>
