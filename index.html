@@ -11,35 +11,48 @@
             color: #e0e0e0;
             margin: 0;
             padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
         }
-        .container {
-            width: 100%;
-            max-width: 900px;
+
+        /* --- THAY ĐỔI Ở ĐÂY --- */
+        /* Bỏ Grid, dùng Flexbox để xếp dọc và căn giữa */
+        .main-container {
+            display: flex;
+            flex-direction: column; /* Xếp các phần tử theo chiều dọc */
+            align-items: center;   /* Căn giữa chúng theo chiều ngang */
+            gap: 20px;             /* Khoảng cách giữa video và playlist */
+        }
+
+        /* Đặt chiều rộng tối đa cho các phần tử để giao diện đẹp hơn */
+        .video-section, .playlist-section {
             background-color: #1e1e1e;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
             overflow: hidden;
+            width: 100%;
+            max-width: 800px; /* Bạn có thể thay đổi kích thước này */
         }
+        /* --- KẾT THÚC THAY ĐỔI --- */
+
+
         header {
             padding: 20px;
             background-color: #2a2a2a;
             border-bottom: 1px solid #333;
         }
+
         h1 {
             margin: 0;
             font-size: 1.8em;
             color: #ffffff;
             text-align: center;
         }
+
         .video-player-wrapper {
             position: relative;
             padding-top: 56.25%; /* 16:9 Aspect Ratio */
             background-color: #000;
         }
+
         video {
             position: absolute;
             top: 0;
@@ -48,27 +61,33 @@
             height: 100%;
             border: none;
         }
+
         .playlist {
             padding: 20px;
         }
+
         h2 {
             margin-top: 0;
             border-bottom: 2px solid #333;
             padding-bottom: 10px;
             font-size: 1.4em;
         }
+
         .playlist-item {
             padding: 15px;
             cursor: pointer;
             border-bottom: 1px solid #333;
             transition: background-color 0.3s;
         }
+
         .playlist-item:last-child {
             border-bottom: none;
         }
+
         .playlist-item:hover {
             background-color: #2c2c2c;
         }
+
         .playlist-item.active {
             background-color: #007bff;
             color: #fff;
@@ -78,41 +97,40 @@
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>Tổng hớp máy cái chill=)</h1>
-    </header>
+<div class="main-container">
 
-    <div class="video-player-wrapper">
-        <video id="videoPlayer" controls autoplay muted>
-            Trình duyệt của bạn không hỗ trợ thẻ video.
-        </video>
+    <div class="video-section">
+        <header>
+            <h1>Tổng hợp máy cái chill=)</h1>
+        </header>
+        <div class="video-player-wrapper">
+            <video id="videoPlayer" controls autoplay muted>
+                Trình duyệt của bạn không hỗ trợ thẻ video.
+            </video>
+        </div>
     </div>
 
-    <div class="playlist">
-        <h2>Danh sách phát</h2>
-        <div id="playlist-container">
-            </div>
+    <div class="playlist-section">
+        <div class="playlist">
+            <h2>Danh sách phát</h2>
+            <div id="playlist-container">
+                </div>
+        </div>
     </div>
+
 </div>
 
 <script>
-    // --- BẠN CHỈ CẦN CHỈNH SỬA PHẦN NÀY ---
     const videos = [
         { title: "intro 1", filename: "video.mp4" },
-        { title: "Anh Mẹt Rồi", filename: "anhmetroi.mp4" },
-        { title: "Chờ đợi có đáng sợ tikv1", filename: "chodoicodangsotik1.mp4" },
+        { title: "Anh Mệt Rồi", filename: "anhmetroi.mp4" },
+        { title: "Chờ đợi có đáng sợ", filename: "chodoicodangsotik1.mp4" },
         { title: "Như anh mơ", filename: "nhuanhmo.mp4"}
-        // Thêm các video khác của bạn vào đây
-        // { title: "Tên video bạn muốn hiển thị", filename: "tên-file-video.mp4" },
     ];
-    // --- KẾT THÚC PHẦN CHỈNH SỬA ---
 
     const videoPlayer = document.getElementById('videoPlayer');
     const playlistContainer = document.getElementById('playlist-container');
-    const videoSource = document.createElement('source');
-    videoPlayer.appendChild(videoSource);
-
+    
     let currentVideoIndex = 0;
 
     function createPlaylistItem(video, index) {
@@ -142,9 +160,7 @@
         
         currentVideoIndex = index;
         const video = videos[index];
-        // Đường dẫn tương đối đến thư mục 'videos'
-        videoSource.setAttribute('src', `videos/${video.filename}`);
-        videoSource.setAttribute('type', 'video/mp4');
+        videoPlayer.src = video.filename;
         
         videoPlayer.load();
         videoPlayer.play().catch(e => console.error("Autoplay bị chặn:", e));
@@ -152,17 +168,15 @@
         updateActivePlaylistItem();
     }
 
-    // Tự động tạo danh sách phát
     videos.forEach(createPlaylistItem);
 
-    // Phát video đầu tiên khi tải trang
     if (videos.length > 0) {
-        playVideo(1);
+        playVideo(0);
     }
 
-    // Tự động chuyển video tiếp theo khi video hiện tại kết thúc
     videoPlayer.onended = () => {
-        playVideo(currentVideoIndex);
+        const nextVideoIndex = (currentVideoIndex + 1) % videos.length;
+        playVideo(nextVideoIndex);
     };
 </script>
 
