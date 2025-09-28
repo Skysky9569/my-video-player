@@ -101,7 +101,7 @@
     const videos = [
         { title: "intro 1", filename: "video.mp4" },
         { title: "Anh Mẹt Rồi", filename: "anhmetroi.mp4" },
-       
+        { title: "Chờ đợi có đáng sợ tikv1", filename: "chodoicodangsotik1.mp4" },
         // Thêm các video khác của bạn vào đây
         // { title: "Tên video bạn muốn hiển thị", filename: "tên-file-video.mp4" },
     ];
@@ -156,12 +156,12 @@
 
     // Phát video đầu tiên khi tải trang
     if (videos.length > 0) {
-        playVideo(0);
+        playVideo(1);
     }
 
     // Tự động chuyển video tiếp theo khi video hiện tại kết thúc
     videoPlayer.onended = () => {
-        playVideo(currentVideoIndex + 1);
+        playVideo(currentVideoIndex);
     };
 </script>
 
