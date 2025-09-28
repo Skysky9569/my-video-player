@@ -160,7 +160,7 @@
         
         currentVideoIndex = index;
         const video = videos[index];
-        videoPlayer.src = video.filename;
+        videoPlayer.src = `videos/${video.filename}`;
         
         videoPlayer.load();
         videoPlayer.play().catch(e => console.error("Autoplay bị chặn:", e));
