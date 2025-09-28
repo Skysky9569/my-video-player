@@ -80,7 +80,7 @@
 
 <div class="container">
     <header>
-        <h1>My Video Collection</h1>
+        <h1>Tổng hớp máy cái=)</h1>
     </header>
 
     <div class="video-player-wrapper">
@@ -99,8 +99,8 @@
 <script>
     // --- BẠN CHỈ CẦN CHỈNH SỬA PHẦN NÀY ---
     const videos = [
-        { title: "Quỷ khót intro", filename: "video.mp4" },
-        { title: "Video Giới Thiệu Sản Phẩm", filename: "product_intro.mp4" },
+        { title: "intro 1", filename: "video.mp4" },
+        { title: "Anh Mẹt Rồi", filename: "anhmetroi.mp4" },
         { title: "Video Hướng Dẫn Ngắn", filename: "tutorial.mp4" },
         // Thêm các video khác của bạn vào đây
         // { title: "Tên video bạn muốn hiển thị", filename: "tên-file-video.mp4" },
@@ -142,7 +142,7 @@
         currentVideoIndex = index;
         const video = videos[index];
         // Đường dẫn tương đối đến thư mục 'videos'
-        videoSource.setAttribute('src', (video.filename));
+        videoSource.setAttribute('src', `videos/${video.filename}`);
         videoSource.setAttribute('type', 'video/mp4');
         
         videoPlayer.load();
