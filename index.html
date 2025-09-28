@@ -142,7 +142,7 @@
         currentVideoIndex = index;
         const video = videos[index];
         // Đường dẫn tương đối đến thư mục 'videos'
-        videoSource.setAttribute('src', `videos/${video.filename}`);
+        videoSource.setAttribute('src', (video.filename));
         videoSource.setAttribute('type', 'video/mp4');
         
         videoPlayer.load();
