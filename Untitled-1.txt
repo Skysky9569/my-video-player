@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng dụng Chat Nâng cao</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải font Inter từ Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS tùy chỉnh */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: #f1f1f1; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        #chat-messages::-webkit-scrollbar-thumb:hover { background: #555; }
+        .message-bubble { transition: all 0.2s ease-in-out; }
+        /* Style cho modal */
+        #name-modal {
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <!-- Modal để nhập tên -->
+    <div id="name-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-11/12 max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Tên hiển thị của bạn?</h2>
+            <p class="mb-6 text-gray-600">Vui lòng nhập tên bạn muốn sử dụng trong phòng chat.</p>
+            <form id="name-form">
+                <input type="text" id="name-input" placeholder="Ví dụ: Anh Hùng Bàn Phím" required
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit"
+                    class="w-full mt-4 bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200">
+                    Lưu và Tham gia
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Giao diện chính của ứng dụng -->
+    <div id="app-container" class="w-full max-w-2xl h-full md:h-[90vh] md:max-h-[700px] flex flex-col bg-white shadow-2xl rounded-lg overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+            <div>
+                <h1 id="user-name-display" class="text-xl font-bold">Phòng Chat Chung</h1>
+                <p id="user-id-display" class="text-xs text-blue-200 mt-1 truncate" title="User ID">Đang tải...</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                 <button id="change-name-btn" title="Đổi tên" class="p-2 rounded-full hover:bg-blue-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+                </button>
+                 <button id="new-id-btn" title="Tạo danh tính mới" class="p-2 rounded-full hover:bg-blue-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+                </button>
+                <div id="auth-status" class="w-4 h-4 rounded-full bg-red-500" title="Chưa kết nối"></div>
+            </div>
+        </header>
+
+        <!-- Spinner tải dữ liệu -->
+        <div id="loader" class="flex flex-col items-center justify-center flex-grow">
+             <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p class="mt-4 text-gray-500">Đang kết nối và tải tin nhắn...</p>
+        </div>
+        
+        <!-- Khu vực hiển thị tin nhắn -->
+        <main id="chat-messages" class="flex-grow p-4 overflow-y-auto hidden"></main>
+
+        <!-- Phần nhập tin nhắn -->
+        <footer class="p-4 bg-gray-50 border-t border-gray-200">
+            <form id="message-form" class="flex items-center space-x-3">
+                <input type="text" id="message-input" placeholder="Nhập tin nhắn..." autocomplete="off" class="flex-grow p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" disabled>
+                <button type="submit" id="send-button" class="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 transition" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <!-- Script JavaScript -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // To fix the "Illegal return statement" error, we wrap the entire script logic
+        // in a 'load' event listener. This ensures the code runs within a function scope,
+        // making the 'return' statement valid.
+        window.addEventListener('load', async () => {
+            // ---- CÀI ĐẶT FIREBASE VÀ BIẾN TOÀN CỤC ---- //
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chat-app-v2';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+            if (!firebaseConfig) {
+                console.error("Cấu hình Firebase không tồn tại.");
+                document.getElementById('loader').innerHTML = '<p class="text-red-500">Lỗi: Cấu hình Firebase không tồn tại.</p>';
+                return;
+            }
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            setLogLevel('debug');
+
+            // ---- LẤY CÁC PHẦN TỬ DOM ---- //
+            const chatMessages = document.getElementById('chat-messages');
+            const messageForm = document.getElementById('message-form');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const loader = document.getElementById('loader');
+            const userIdDisplay = document.getElementById('user-id-display');
+            const userNameDisplay = document.getElementById('user-name-display');
+            const authStatus = document.getElementById('auth-status');
+            const nameModal = document.getElementById('name-modal');
+            const nameForm = document.getElementById('name-form');
+            const nameInput = document.getElementById('name-input');
+            const changeNameBtn = document.getElementById('change-name-btn');
+            const newIdBtn = document.getElementById('new-id-btn');
+            
+            let currentUser = null;
+            let currentDisplayName = 'Anonymous';
+            let messagesUnsubscribe = null;
+
+            // ---- HÀM XỬ LÝ ---- //
+            
+            const openNameModal = () => { nameModal.classList.remove('hidden'); nameInput.focus(); };
+            const closeNameModal = () => { nameModal.classList.add('hidden'); };
+
+            function formatTime(timestamp) {
+                if (!timestamp || typeof timestamp.toDate !== 'function') return '';
+                return timestamp.toDate().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            function renderMessages(messages) {
+                chatMessages.innerHTML = '';
+                messages.forEach(msg => {
+                    const isMyMessage = msg.userId === currentUser?.uid;
+                    
+                    const messageWrapper = document.createElement('div');
+                    messageWrapper.className = `flex flex-col my-2 ${isMyMessage ? 'items-end' : 'items-start'}`;
+
+                    const senderName = document.createElement('span');
+                    senderName.className = `text-xs text-gray-500 mx-3 ${isMyMessage ? 'text-right' : 'text-left'}`;
+                    senderName.textContent = isMyMessage ? 'Bạn' : (msg.displayName || 'Người lạ');
+
+                    const messageBubble = document.createElement('div');
+                    messageBubble.className = `message-bubble max-w-xs md:max-w-md p-3 rounded-2xl shadow ${isMyMessage ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-200 text-gray-800 rounded-bl-none'}`;
+                    
+                    messageBubble.innerHTML = `<p class="text-sm break-words">${msg.text}</p><span class="text-xs mt-1 block ${isMyMessage ? 'text-blue-200 text-right' : 'text-gray-500 text-left'}">${formatTime(msg.timestamp)}</span>`;
+
+                    messageWrapper.appendChild(senderName);
+                    messageWrapper.appendChild(messageBubble);
+                    chatMessages.appendChild(messageWrapper);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            async function sendMessage(text) {
+                if (!text.trim() || !currentUser) return;
+                try {
+                    const messagesCol = collection(db, `artifacts/${appId}/public/data/messages`);
+                    await addDoc(messagesCol, {
+                        text: text,
+                        userId: currentUser.uid,
+                        displayName: currentDisplayName,
+                        timestamp: serverTimestamp()
+                    });
+                } catch (error) { console.error("Lỗi khi gửi tin nhắn:", error); }
+            }
+            
+            function listenForMessages() {
+                if (messagesUnsubscribe) messagesUnsubscribe();
+                const messagesCol = collection(db, `artifacts/${appId}/public/data/messages`);
+                const q = query(messagesCol);
+
+                messagesUnsubscribe = onSnapshot(q, (querySnapshot) => {
+                    const messages = [];
+                    querySnapshot.forEach((doc) => messages.push(doc.data()));
+                    messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+                    renderMessages(messages);
+                    loader.classList.add('hidden');
+                    chatMessages.classList.remove('hidden');
+                }, (error) => {
+                    console.error("Lỗi khi lắng nghe tin nhắn:", error);
+                    loader.innerHTML = '<p class="text-red-500">Không thể tải tin nhắn.</p>';
+                });
+            }
+
+            async function createNewIdentity() {
+                const userToDelete = auth.currentUser;
+                if (userToDelete) {
+                    try {
+                        await deleteUser(userToDelete);
+                        console.log("Người dùng cũ đã được xóa.");
+                        localStorage.removeItem('chatDisplayName');
+                        // onAuthStateChanged sẽ tự động xử lý việc đăng nhập lại
+                    } catch (error) {
+                        console.error("Không thể xóa người dùng cũ:", error);
+                    }
+                }
+            }
+
+            // ---- KHỞI TẠO VÀ SỰ KIỆN ---- //
+            
+            messageForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendMessage(messageInput.value);
+                messageInput.value = '';
+            });
+            
+            nameForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newName = nameInput.value.trim();
+                if (newName) {
+                    currentDisplayName = newName;
+                    localStorage.setItem('chatDisplayName', newName);
+                    userNameDisplay.textContent = newName;
+                    closeNameModal();
+                }
+            });
+
+            changeNameBtn.addEventListener('click', openNameModal);
+            newIdBtn.addEventListener('click', createNewIdentity);
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    authStatus.className = 'w-4 h-4 rounded-full bg-green-500';
+                    authStatus.title = `Đã kết nối: ${user.uid}`;
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    userIdDisplay.textContent = `ID: ${user.uid}`;
+
+                    const savedName = localStorage.getItem('chatDisplayName');
+                    if (savedName) {
+                        currentDisplayName = savedName;
+                        userNameDisplay.textContent = currentDisplayName;
+                    } else {
+                        openNameModal();
+                    }
+                    listenForMessages();
+                } else {
+                    console.log("Người dùng không tồn tại, đang tạo người dùng mới...");
+                    currentUser = null;
+                    authStatus.className = 'w-4 h-4 rounded-full bg-red-500';
+                    authStatus.title = "Chưa kết nối";
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    // Tự động đăng nhập ẩn danh nếu không có user
+                    signInAnonymously(auth).catch(error => console.error("Lỗi đăng nhập ẩn danh:", error));
+                }
+            });
+            
+            if (initialAuthToken && !auth.currentUser) {
+                try {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } catch (error) {
+                    console.error("Lỗi xác thực token:", error);
+                    if (!auth.currentUser) await signInAnonymously(auth);
+                }
+            } else if (!auth.currentUser) {
+                await signInAnonymously(auth);
+            }
+        });
+    </script>
+</body>
+</html>
+
+ki
