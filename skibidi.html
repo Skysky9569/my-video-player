@@ -87,14 +87,26 @@
     <!-- Script JavaScript -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         window.addEventListener('load', async () => {
             // ---- CÀI ĐẶT FIREBASE VÀ BIẾN TOÀN CỤC ---- //
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chat-app-v2';
+            const appId = 'public-chat-app-v2'; // Sử dụng một ID cố định cho ứng dụng công khai
             
-            const firebaseConfigPlaceholder = {
+            // ======================== QUAN TRỌNG ========================
+            // Dán đối tượng cấu hình Firebase của bạn vào đây.
+            // Bạn có thể tìm thấy nó trong Project Settings > General > Your apps > SDK setup and configuration.
+            // Nó sẽ trông giống như thế này:
+            // const firebaseConfig = {
+            //   apiKey: "AIzaSy...",
+            //   authDomain: "your-project.firebaseapp.com",
+            //   projectId: "your-project",
+            //   storageBucket: "your-project.appspot.com",
+            //   messagingSenderId: "...",
+            //   appId: "..."
+            // };
+            const firebaseConfig = {
                 apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 authDomain: "your-project-id.firebaseapp.com",
                 projectId: "your-project-id",
@@ -102,16 +114,17 @@
                 messagingSenderId: "123456789012",
                 appId: "1:123456789012:web:xxxxxxxxxxxxxxxxxxxxxx"
             };
-
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfigPlaceholder;
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            // ==========================================================
 
             if (!firebaseConfig || firebaseConfig.apiKey === "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") {
-                console.warn("Cảnh báo: Bạn đang sử dụng cấu hình Firebase mẫu. Vui lòng thay thế bằng cấu hình thật.");
-                if (firebaseConfig.apiKey === "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"){
-                     document.getElementById('loader').innerHTML = '<p class="text-orange-500 p-4 text-center"><b>Lưu ý:</b> Cần cập nhật cấu hình Firebase trong mã nguồn để ứng dụng hoạt động. Lỗi quyền truy cập có thể xảy ra do cấu hình này.</p>';
-                }
-                if(!firebaseConfig) return;
+                console.error("LỖI: Cấu hình Firebase chưa được thiết lập. Vui lòng cập nhật biến 'firebaseConfig' trong mã nguồn.");
+                document.getElementById('loader').innerHTML = `
+                    <div class="p-4 text-center">
+                        <h3 class="text-xl font-bold text-red-600">Lỗi Cấu Hình</h3>
+                        <p class="mt-2 text-gray-700">Bạn cần cập nhật thông tin cấu hình Firebase trong file HTML để ứng dụng có thể hoạt động.</p>
+                        <p class="mt-4 text-sm text-gray-500">Vui lòng xem hướng dẫn trong phần bình luận của mã nguồn.</p>
+                    </div>`;
+                return;
             }
 
             const app = initializeApp(firebaseConfig);
@@ -199,11 +212,10 @@
                     chatMessages.classList.remove('hidden');
                 }, (error) => {
                     console.error("Lỗi khi lắng nghe tin nhắn:", error);
-                    loader.innerHTML = '<p class="text-red-500">Không thể tải tin nhắn. Vui lòng kiểm tra quyền truy cập Firestore.</p>';
+                    loader.innerHTML = '<p class="text-red-500 p-4 text-center">Không thể tải tin nhắn. <br> Vui lòng kiểm tra lại <b>Quy tắc Bảo mật (Security Rules)</b> của Firestore.</p>';
                 });
             }
-
-            // FIX: Thay thế deleteUser bằng signOut và reload để tránh lỗi token hết hạn.
+            
             async function createNewIdentity() {
                 try {
                     await signOut(auth);
@@ -237,10 +249,8 @@
             changeNameBtn.addEventListener('click', openNameModal);
             newIdBtn.addEventListener('click', createNewIdentity);
 
-            // FIX: Cấu trúc lại logic xác thực để rõ ràng và tránh lặp.
             onAuthStateChanged(auth, (user) => {
                 if (user) {
-                    // Trạng thái: Đã đăng nhập
                     currentUser = user;
                     authStatus.className = 'w-4 h-4 rounded-full bg-green-500';
                     authStatus.title = `Đã kết nối: ${user.uid}`;
@@ -257,7 +267,6 @@
                     }
                     listenForMessages();
                 } else {
-                    // Trạng thái: Đã đăng xuất
                     currentUser = null;
                     authStatus.className = 'w-4 h-4 rounded-full bg-red-500';
                     authStatus.title = "Chưa kết nối";
@@ -268,14 +277,10 @@
             
             try {
                 if (!auth.currentUser) {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                    await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Lỗi đăng nhập ban đầu:", error);
+                console.error("Lỗi đăng nhập ẩn danh:", error);
                 document.getElementById('loader').innerHTML = '<p class="text-red-500 p-4 text-center"><b>Lỗi:</b> Không thể xác thực người dùng. Vui lòng kiểm tra lại cấu hình Firebase và kết nối mạng.</p>';
             }
         });
