@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ứng dụng Chat Nâng cao</title>
+    <title>Ứng dụng Chat Nâng cao (WebSocket)</title>
     <!-- Tải Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tải font Inter từ Google Fonts -->
@@ -60,14 +60,14 @@
                  <button id="new-id-btn" title="Tạo danh tính mới" class="p-2 rounded-full hover:bg-blue-700 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
                 </button>
-                <div id="auth-status" class="w-4 h-4 rounded-full bg-red-500" title="Chưa kết nối"></div>
+                <div id="connection-status" class="w-4 h-4 rounded-full bg-red-500" title="Chưa kết nối"></div>
             </div>
         </header>
 
         <!-- Spinner tải dữ liệu -->
         <div id="loader" class="flex flex-col items-center justify-center flex-grow">
              <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            <p class="mt-4 text-gray-500">Đang kết nối và tải tin nhắn...</p>
+            <p class="mt-4 text-gray-500">Đang kết nối tới máy chủ chat...</p>
         </div>
         
         <!-- Khu vực hiển thị tin nhắn -->
@@ -86,52 +86,11 @@
 
     <!-- Script JavaScript -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        window.addEventListener('load', async () => {
-            // ---- CÀI ĐẶT FIREBASE VÀ BIẾN TOÀN CỤC ---- //
-            const appId = 'public-chat-app-v2'; // Sử dụng một ID cố định cho ứng dụng công khai
+        window.addEventListener('load', () => {
+            // ---- CÀI ĐẶT WEBSOCKET VÀ BIẾN TOÀN CỤC ---- //
+            // Sử dụng một máy chủ WebSocket công cộng cho mục đích demo
+            const WEBSOCKET_URL = 'wss://socketsbay.com/wss/v2/1/demo/';
             
-            // ======================== QUAN TRỌNG ========================
-            // Dán đối tượng cấu hình Firebase của bạn vào đây.
-            // Bạn có thể tìm thấy nó trong Project Settings > General > Your apps > SDK setup and configuration.
-            // Nó sẽ trông giống như thế này:
-            // const firebaseConfig = {
-            //   apiKey: "AIzaSy...",
-            //   authDomain: "your-project.firebaseapp.com",
-            //   projectId: "your-project",
-            //   storageBucket: "your-project.appspot.com",
-            //   messagingSenderId: "...",
-            //   appId: "..."
-            // };
-            const firebaseConfig = {
-                apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                authDomain: "your-project-id.firebaseapp.com",
-                projectId: "your-project-id",
-                storageBucket: "your-project-id.appspot.com",
-                messagingSenderId: "123456789012",
-                appId: "1:123456789012:web:xxxxxxxxxxxxxxxxxxxxxx"
-            };
-            // ==========================================================
-
-            if (!firebaseConfig || firebaseConfig.apiKey === "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") {
-                console.error("LỖI: Cấu hình Firebase chưa được thiết lập. Vui lòng cập nhật biến 'firebaseConfig' trong mã nguồn.");
-                document.getElementById('loader').innerHTML = `
-                    <div class="p-4 text-center">
-                        <h3 class="text-xl font-bold text-red-600">Lỗi Cấu Hình</h3>
-                        <p class="mt-2 text-gray-700">Bạn cần cập nhật thông tin cấu hình Firebase trong file HTML để ứng dụng có thể hoạt động.</p>
-                        <p class="mt-4 text-sm text-gray-500">Vui lòng xem hướng dẫn trong phần bình luận của mã nguồn.</p>
-                    </div>`;
-                return;
-            }
-
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
-            setLogLevel('debug');
-
             // ---- LẤY CÁC PHẦN TỬ DOM ---- //
             const chatMessages = document.getElementById('chat-messages');
             const messageForm = document.getElementById('message-form');
@@ -140,31 +99,47 @@
             const loader = document.getElementById('loader');
             const userIdDisplay = document.getElementById('user-id-display');
             const userNameDisplay = document.getElementById('user-name-display');
-            const authStatus = document.getElementById('auth-status');
+            const connectionStatus = document.getElementById('connection-status');
             const nameModal = document.getElementById('name-modal');
             const nameForm = document.getElementById('name-form');
             const nameInput = document.getElementById('name-input');
             const changeNameBtn = document.getElementById('change-name-btn');
             const newIdBtn = document.getElementById('new-id-btn');
             
-            let currentUser = null;
+            let userId = null;
             let currentDisplayName = 'Anonymous';
-            let messagesUnsubscribe = null;
+            let allMessages = [];
 
             // ---- HÀM XỬ LÝ ---- //
-            
             const openNameModal = () => { nameModal.classList.remove('hidden'); nameInput.focus(); };
             const closeNameModal = () => { nameModal.classList.add('hidden'); };
 
-            function formatTime(timestamp) {
-                if (!timestamp || typeof timestamp.toDate !== 'function') return '';
-                return timestamp.toDate().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            function setupUserIdentity() {
+                userId = localStorage.getItem('chatUserId_ws');
+                if (!userId) {
+                    userId = crypto.randomUUID();
+                    localStorage.setItem('chatUserId_ws', userId);
+                }
+                userIdDisplay.textContent = `ID: ${userId}`;
+
+                const savedName = localStorage.getItem('chatDisplayName_ws');
+                if (savedName) {
+                    currentDisplayName = savedName;
+                    userNameDisplay.textContent = currentDisplayName;
+                } else {
+                    openNameModal();
+                }
+            }
+
+            function formatTime(isoString) {
+                if (!isoString) return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                return new Date(isoString).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             }
 
             function renderMessages(messages) {
                 chatMessages.innerHTML = '';
                 messages.forEach(msg => {
-                    const isMyMessage = msg.userId === currentUser?.uid;
+                    const isMyMessage = msg.userId === userId;
                     
                     const messageWrapper = document.createElement('div');
                     messageWrapper.className = `flex flex-col my-2 ${isMyMessage ? 'items-end' : 'items-start'}`;
@@ -185,49 +160,66 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
-            async function sendMessage(text) {
-                if (!text.trim() || !currentUser) return;
-                try {
-                    const messagesCol = collection(db, `artifacts/${appId}/public/data/messages`);
-                    await addDoc(messagesCol, {
-                        text: text,
-                        userId: currentUser.uid,
-                        displayName: currentDisplayName,
-                        timestamp: serverTimestamp()
-                    });
-                } catch (error) { console.error("Lỗi khi gửi tin nhắn:", error); }
+            function createNewIdentity() {
+                localStorage.removeItem('chatUserId_ws');
+                localStorage.removeItem('chatDisplayName_ws');
+                window.location.reload();
             }
-            
-            function listenForMessages() {
-                if (messagesUnsubscribe) messagesUnsubscribe();
-                const messagesCol = collection(db, `artifacts/${appId}/public/data/messages`);
-                const q = query(messagesCol);
 
-                messagesUnsubscribe = onSnapshot(q, (querySnapshot) => {
-                    const messages = [];
-                    querySnapshot.forEach((doc) => messages.push(doc.data()));
-                    messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
-                    renderMessages(messages);
-                    loader.classList.add('hidden');
-                    chatMessages.classList.remove('hidden');
-                }, (error) => {
-                    console.error("Lỗi khi lắng nghe tin nhắn:", error);
-                    loader.innerHTML = '<p class="text-red-500 p-4 text-center">Không thể tải tin nhắn. <br> Vui lòng kiểm tra lại <b>Quy tắc Bảo mật (Security Rules)</b> của Firestore.</p>';
-                });
-            }
+            // ---- KHỞI TẠO WEBSOCKET VÀ SỰ KIỆN ---- //
+            setupUserIdentity();
             
-            async function createNewIdentity() {
+            const socket = new WebSocket(WEBSOCKET_URL);
+
+            socket.onopen = () => {
+                console.log("Kết nối WebSocket đã được thiết lập.");
+                connectionStatus.className = 'w-4 h-4 rounded-full bg-green-500';
+                connectionStatus.title = "Đã kết nối";
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                loader.classList.add('hidden');
+                chatMessages.classList.remove('hidden');
+            };
+
+            socket.onmessage = (event) => {
                 try {
-                    await signOut(auth);
-                    console.log("Đã đăng xuất người dùng cũ.");
-                    localStorage.removeItem('chatDisplayName');
-                    window.location.reload(); // Tải lại trang để nhận ID ẩn danh mới.
-                } catch (error) {
-                    console.error("Lỗi khi đăng xuất:", error);
+                    const message = JSON.parse(event.data);
+                    // Đảm bảo message là một object hợp lệ
+                    if (message && typeof message === 'object' && message.text) {
+                        allMessages.push(message);
+                        renderMessages(allMessages);
+                    }
+                } catch (e) {
+                    console.warn("Nhận được dữ liệu không phải JSON:", event.data);
                 }
-            }
+            };
 
-            // ---- KHỞI TẠO VÀ SỰ KIỆN ---- //
+            socket.onclose = () => {
+                console.log("Kết nối WebSocket đã đóng.");
+                connectionStatus.className = 'w-4 h-4 rounded-full bg-red-500';
+                connectionStatus.title = "Đã ngắt kết nối";
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                loader.innerHTML = '<p class="text-red-500 p-4 text-center">Đã mất kết nối. Vui lòng tải lại trang.</p>';
+                loader.classList.remove('hidden');
+                chatMessages.classList.add('hidden');
+            };
+
+            socket.onerror = (error) => {
+                console.error("Lỗi WebSocket:", error);
+                loader.innerHTML = '<p class="text-red-500 p-4 text-center">Không thể kết nối tới máy chủ chat.</p>';
+            };
+
+            function sendMessage(text) {
+                if (!text.trim() || socket.readyState !== WebSocket.OPEN) return;
+                const messagePayload = {
+                    text: text,
+                    userId: userId,
+                    displayName: currentDisplayName,
+                    timestamp: new Date().toISOString()
+                };
+                socket.send(JSON.stringify(messagePayload));
+            }
             
             messageForm.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -240,7 +232,7 @@
                 const newName = nameInput.value.trim();
                 if (newName) {
                     currentDisplayName = newName;
-                    localStorage.setItem('chatDisplayName', newName);
+                    localStorage.setItem('chatDisplayName_ws', newName);
                     userNameDisplay.textContent = newName;
                     closeNameModal();
                 }
@@ -248,41 +240,6 @@
 
             changeNameBtn.addEventListener('click', openNameModal);
             newIdBtn.addEventListener('click', createNewIdentity);
-
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    authStatus.className = 'w-4 h-4 rounded-full bg-green-500';
-                    authStatus.title = `Đã kết nối: ${user.uid}`;
-                    messageInput.disabled = false;
-                    sendButton.disabled = false;
-                    userIdDisplay.textContent = `ID: ${user.uid}`;
-
-                    const savedName = localStorage.getItem('chatDisplayName');
-                    if (savedName) {
-                        currentDisplayName = savedName;
-                        userNameDisplay.textContent = currentDisplayName;
-                    } else {
-                        openNameModal();
-                    }
-                    listenForMessages();
-                } else {
-                    currentUser = null;
-                    authStatus.className = 'w-4 h-4 rounded-full bg-red-500';
-                    authStatus.title = "Chưa kết nối";
-                    messageInput.disabled = true;
-                    sendButton.disabled = true;
-                }
-            });
-            
-            try {
-                if (!auth.currentUser) {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Lỗi đăng nhập ẩn danh:", error);
-                document.getElementById('loader').innerHTML = '<p class="text-red-500 p-4 text-center"><b>Lỗi:</b> Không thể xác thực người dùng. Vui lòng kiểm tra lại cấu hình Firebase và kết nối mạng.</p>';
-            }
         });
     </script>
 </body>
