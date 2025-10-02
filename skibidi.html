@@ -67,7 +67,7 @@
         <!-- Spinner tải dữ liệu -->
         <div id="loader" class="flex flex-col items-center justify-center flex-grow">
              <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            <p class="mt-4 text-gray-500">Đang kết nối tới máy chủ chat...</p>
+            <p id="loader-text" class="mt-4 text-gray-500">Đang kết nối tới máy chủ chat...</p>
         </div>
         
         <!-- Khu vực hiển thị tin nhắn -->
@@ -88,7 +88,6 @@
     <script type="module">
         window.addEventListener('load', () => {
             // ---- CÀI ĐẶT WEBSOCKET VÀ BIẾN TOÀN CỤC ---- //
-            // Sử dụng một máy chủ WebSocket công cộng cho mục đích demo
             const WEBSOCKET_URL = 'wss://socketsbay.com/wss/v2/1/demo/';
             
             // ---- LẤY CÁC PHẦN TỬ DOM ---- //
@@ -97,6 +96,7 @@
             const messageInput = document.getElementById('message-input');
             const sendButton = document.getElementById('send-button');
             const loader = document.getElementById('loader');
+            const loaderText = document.getElementById('loader-text');
             const userIdDisplay = document.getElementById('user-id-display');
             const userNameDisplay = document.getElementById('user-name-display');
             const connectionStatus = document.getElementById('connection-status');
@@ -109,6 +109,7 @@
             let userId = null;
             let currentDisplayName = 'Anonymous';
             let allMessages = [];
+            let socket;
 
             // ---- HÀM XỬ LÝ ---- //
             const openNameModal = () => { nameModal.classList.remove('hidden'); nameInput.focus(); };
@@ -157,7 +158,9 @@
                     messageWrapper.appendChild(messageBubble);
                     chatMessages.appendChild(messageWrapper);
                 });
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                if (chatMessages.scrollHeight > chatMessages.clientHeight) {
+                     chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
             }
 
             function createNewIdentity() {
@@ -166,52 +169,66 @@
                 window.location.reload();
             }
 
-            // ---- KHỞI TẠO WEBSOCKET VÀ SỰ KIỆN ---- //
-            setupUserIdentity();
-            
-            const socket = new WebSocket(WEBSOCKET_URL);
-
-            socket.onopen = () => {
-                console.log("Kết nối WebSocket đã được thiết lập.");
-                connectionStatus.className = 'w-4 h-4 rounded-full bg-green-500';
-                connectionStatus.title = "Đã kết nối";
-                messageInput.disabled = false;
-                sendButton.disabled = false;
-                loader.classList.add('hidden');
-                chatMessages.classList.remove('hidden');
-            };
-
-            socket.onmessage = (event) => {
-                try {
-                    const message = JSON.parse(event.data);
-                    // Đảm bảo message là một object hợp lệ
-                    if (message && typeof message === 'object' && message.text) {
-                        allMessages.push(message);
-                        renderMessages(allMessages);
-                    }
-                } catch (e) {
-                    console.warn("Nhận được dữ liệu không phải JSON:", event.data);
-                }
-            };
-
-            socket.onclose = () => {
-                console.log("Kết nối WebSocket đã đóng.");
-                connectionStatus.className = 'w-4 h-4 rounded-full bg-red-500';
-                connectionStatus.title = "Đã ngắt kết nối";
-                messageInput.disabled = true;
-                sendButton.disabled = true;
-                loader.innerHTML = '<p class="text-red-500 p-4 text-center">Đã mất kết nối. Vui lòng tải lại trang.</p>';
+            function connectWebSocket() {
+                console.log("Đang thử kết nối WebSocket...");
+                loaderText.textContent = 'Đang kết nối tới máy chủ chat...';
                 loader.classList.remove('hidden');
                 chatMessages.classList.add('hidden');
-            };
+                connectionStatus.className = 'w-4 h-4 rounded-full bg-yellow-500 animate-pulse';
+                connectionStatus.title = "Đang kết nối...";
 
-            socket.onerror = (error) => {
-                console.error("Lỗi WebSocket:", error);
-                loader.innerHTML = '<p class="text-red-500 p-4 text-center">Không thể kết nối tới máy chủ chat.</p>';
-            };
+                socket = new WebSocket(WEBSOCKET_URL);
+
+                socket.onopen = () => {
+                    console.log("Kết nối WebSocket đã được thiết lập.");
+                    connectionStatus.className = 'w-4 h-4 rounded-full bg-green-500';
+                    connectionStatus.title = "Đã kết nối";
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    loader.classList.add('hidden');
+                    chatMessages.classList.remove('hidden');
+                    // Gửi một tin nhắn hệ thống để thông báo đã tham gia (tùy chọn)
+                    // sendMessage(`'${currentDisplayName}' đã tham gia phòng chat.`);
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        if (message && typeof message === 'object' && message.text) {
+                            allMessages.push(message);
+                            renderMessages(allMessages);
+                        }
+                    } catch (e) {
+                        console.warn("Nhận được dữ liệu không phải JSON:", event.data);
+                    }
+                };
+
+                socket.onclose = () => {
+                    console.log("Kết nối WebSocket đã đóng. Thử lại sau 5 giây.");
+                    connectionStatus.className = 'w-4 h-4 rounded-full bg-red-500';
+                    connectionStatus.title = "Đã ngắt kết nối";
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    
+                    loaderText.textContent = 'Đã mất kết nối. Đang thử kết nối lại...';
+                    loader.classList.remove('hidden');
+                    chatMessages.classList.add('hidden');
+                    
+                    // Lên lịch kết nối lại sau 5 giây
+                    setTimeout(connectWebSocket, 5000);
+                };
+
+                socket.onerror = (error) => {
+                    console.error("Lỗi WebSocket:", error);
+                    // Sự kiện onclose sẽ được gọi ngay sau đó, xử lý việc kết nối lại.
+                };
+            }
 
             function sendMessage(text) {
-                if (!text.trim() || socket.readyState !== WebSocket.OPEN) return;
+                if (!text.trim() || !socket || socket.readyState !== WebSocket.OPEN) {
+                    console.warn("WebSocket chưa sẵn sàng. Không thể gửi tin nhắn.");
+                    return;
+                }
                 const messagePayload = {
                     text: text,
                     userId: userId,
@@ -220,6 +237,10 @@
                 };
                 socket.send(JSON.stringify(messagePayload));
             }
+            
+            // ---- KHỞI TẠO VÀ SỰ KIỆN ---- //
+            setupUserIdentity();
+            connectWebSocket(); // Bắt đầu kết nối lần đầu
             
             messageForm.addEventListener('submit', (e) => {
                 e.preventDefault();
